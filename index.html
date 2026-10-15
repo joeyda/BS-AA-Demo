@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mk Task &amp; Priority Tracker</title>
+  <link rel="icon" type="image/png" href="assets/mk-logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;700;900&family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- ============================ LOADING ============================ -->
+  <div id="loading" class="loading"><img src="assets/mk-logo.png" alt="mk" /><div class="spinner"></div></div>
+
+  <!-- ============================ AUTH =============================== -->
+  <section id="auth-screen" class="auth hidden">
+    <div class="auth-card">
+      <img class="auth-logo" src="assets/mk-logo.png" alt="mk North America" />
+      <h1>Task &amp; Priority Tracker</h1>
+      <p class="muted" id="auth-sub">Sign in to your workspace</p>
+      <form id="auth-form" autocomplete="on">
+        <label class="field hidden" id="name-field">Full name
+          <input type="text" id="auth-name" autocomplete="name" />
+        </label>
+        <label class="field">Email
+          <input type="email" id="auth-email" required autocomplete="email" />
+        </label>
+        <label class="field">Password
+          <input type="password" id="auth-password" required minlength="6" autocomplete="current-password" />
+        </label>
+        <div id="auth-msg" class="auth-msg"></div>
+        <button class="btn btn-primary btn-block" type="submit" id="auth-submit">Sign in</button>
+      </form>
+      <div class="auth-links">
+        <a href="#" id="auth-toggle">Create an account</a>
+        <a href="#" id="auth-forgot">Forgot password?</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APP ================================ -->
+  <div id="app" class="hidden">
+    <header class="topbar">
+      <div class="brand">
+        <img src="assets/mk-logo.png" alt="mk North America" class="logo" />
+        <div class="brand-text">
+          <span class="brand-title">Task &amp; Priority Tracker</span>
+          <span class="brand-sub">Business Systems &amp; Automation</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span id="sync-pill" class="sync-pill" title="Sync status"><i></i><span>Connecting…</span></span>
+        <button class="btn btn-ghost" id="btn-request">Submit Request</button>
+        <button class="btn btn-primary" id="btn-new-task">+ New Task</button>
+        <div class="user-menu">
+          <button class="avatar" id="btn-user" aria-haspopup="true"></button>
+          <div class="dropdown hidden" id="user-dropdown">
+            <div class="dd-head"><strong id="dd-name"></strong><span id="dd-email" class="muted"></span></div>
+            <label class="field">Display name<input type="text" id="dd-name-input" /></label>
+            <label class="field">Role
+              <select id="dd-role">
+                <option value="analyst">Analyst</option>
+                <option value="manager">Manager (approves &amp; prioritizes)</option>
+              </select>
+            </label>
+            <button class="btn btn-ghost btn-block" id="btn-save-profile">Save profile</button>
+            <button class="btn btn-danger-ghost btn-block" id="btn-signout">Sign out</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="tabs" id="tabs">
+      <button data-view="dashboard" class="active">Dashboard</button>
+      <button data-view="board">Board</button>
+      <button data-view="queue">Priority Queue</button>
+      <button data-view="matrix">Impact / Effort</button>
+      <button data-view="requests">Requests <span class="badge hidden" id="req-badge">0</span></button>
+      <button data-view="projects">Projects</button>
+      <button data-view="activity">Activity</button>
+    </nav>
+
+    <div class="toolbar" id="toolbar">
+      <input type="search" id="f-search" placeholder="Search tasks, tags, people…" />
+      <select id="f-project"><option value="">All projects</option></select>
+      <select id="f-priority">
+        <option value="">All priorities</option>
+        <option>P1</option><option>P2</option><option>P3</option><option>P4</option>
+      </select>
+      <select id="f-assignee"><option value="">All assignees</option></select>
+      <label class="check"><input type="checkbox" id="f-done" checked /> Show done</label>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-sm" id="btn-export">Export CSV</button>
+    </div>
+
+    <div id="demo-banner" class="demo-banner hidden">
+      <strong>Demo mode</strong> — data is stored in this browser only. Add your Supabase URL &amp; key in
+      <code>js/config.js</code> to enable sign-in and multi-device sync.
+    </div>
+
+    <main id="view"></main>
+  </div>
+
+  <!-- ============================ TASK MODAL ========================= -->
+  <dialog id="task-modal" class="modal">
+    <form method="dialog" id="task-form">
+      <header class="modal-head">
+        <h2 id="task-modal-title">New Task</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+      </header>
+      <div class="modal-body">
+        <div class="grid-2">
+          <label class="field span-2">Title<input type="text" name="title" required maxlength="200" /></label>
+          <label class="field span-2">Description<textarea name="description" rows="3"></textarea></label>
+          <label class="field">Project<select name="project_id"></select></label>
+          <label class="field">Status
+            <select name="status">
+              <option value="backlog">Backlog</option><option value="todo">To Do</option>
+              <option value="in_progress">In Progress</option><option value="blocked">Blocked</option>
+              <option value="review">In Review</option><option value="done">Done</option>
+            </select>
+          </label>
+          <label class="field">Priority
+            <select name="priority">
+              <option value="P1">P1 – Critical</option><option value="P2">P2 – High</option>
+              <option value="P3">P3 – Medium</option><option value="P4">P4 – Low</option>
+            </select>
+          </label>
+          <label class="field">Due date<input type="date" name="due_date" /></label>
+          <label class="field">Impact <output data-for="impact"></output><input type="range" name="impact" min="1" max="5" /></label>
+          <label class="field">Effort <output data-for="effort"></output><input type="range" name="effort" min="1" max="5" /></label>
+          <label class="field">Assignee<input type="text" name="assignee" list="dl-people" /></label>
+          <label class="field">Requested by<input type="text" name="requested_by" list="dl-people" /></label>
+          <label class="field">Department<input type="text" name="department" list="dl-dept" /></label>
+          <label class="field">Progress <output data-for="progress"></output><input type="range" name="progress" min="0" max="100" step="5" /></label>
+          <label class="field span-2">Tags <small class="muted">(comma separated)</small><input type="text" name="tags" /></label>
+          <label class="field mgr-only">Approval
+            <select name="approval">
+              <option value="pending">Pending review</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
+            </select>
+          </label>
+          <div class="score-box span-1"><span class="muted">Priority score</span><strong id="score-preview">–</strong></div>
+        </div>
+
+        <section id="comments-section" class="comments hidden">
+          <h3>Comments</h3>
+          <div id="comment-list"></div>
+          <div class="comment-add">
+            <input type="text" id="comment-input" placeholder="Add a comment for the team…" />
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-comment">Post</button>
+          </div>
+        </section>
+      </div>
+      <footer class="modal-foot">
+        <button type="button" class="btn btn-danger-ghost hidden" id="btn-delete-task">Delete</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" value="save">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- ============================ PROJECT MODAL ====================== -->
+  <dialog id="project-modal" class="modal modal-sm">
+    <form method="dialog" id="project-form">
+      <header class="modal-head">
+        <h2 id="project-modal-title">New Project</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+      </header>
+      <div class="modal-body">
+        <label class="field">Name<input type="text" name="name" required maxlength="120" /></label>
+        <label class="field">Description<textarea name="description" rows="3"></textarea></label>
+        <div class="grid-2">
+          <label class="field">Status
+            <select name="status"><option value="active">Active</option><option value="on_hold">On hold</option><option value="complete">Complete</option></select>
+          </label>
+          <label class="field">Color
+            <select name="color">
+              <option value="#3499CC">mk Blue</option><option value="#00486D">Dark Blue</option>
+              <option value="#CC3333">mk Red</option><option value="#5D666D">Dark Grey</option>
+              <option value="#C1BFB5">Khaki</option><option value="#E8DBC5">Sand</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <footer class="modal-foot">
+        <button type="button" class="btn btn-danger-ghost hidden" id="btn-delete-project">Delete</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" value="save">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <datalist id="dl-people"></datalist>
+  <datalist id="dl-dept"></datalist>
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
